@@ -19,6 +19,7 @@ El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla
 |---|---|
 | `index.html` | La página (el código) |
 | `targets.mind` | La "huella" del carné 2025, para que la cámara lo reconozca |
+| `mindar-image-aframe.prod.js` | MindAR 1.2.5 con un cambio: usa el ángulo real de la cámara del celular (65°) en vez de 45° |
 | `escudo.png` | Escudo de la UNSM (pantalla de inicio) |
 | `3d-*.jpg` y `3d-*.png` | Imágenes de los objetos 3D (medalla, laptop, panel, botones) |
 
@@ -49,6 +50,15 @@ Consejos:
 
 - **Links de los logos:** en `index.html`, busca `data-url="..."` y cambia la dirección.
 - **Estabilizador:** en `index.html`, busca `seguir-suave`. `zonaPos` y `zonaRot` son cuánto movimiento se ignora (más alto = más quieto); `rapidez` es qué tan rápido sigue al carné cuando sí se mueve.
+
+## Si la maqueta se ve corrida respecto al carné
+
+La página supone que la cámara del celular ve un ángulo de 65° (lo normal en celulares). Si en tu celular la maqueta se ve un poco corrida al mirar el carné en ángulo, prueba abrir el link con otro valor al final, por ejemplo:
+
+- `https://maxo-horna-unsm-2026.github.io/carne-ra-unsm/?fov=60`
+- `https://maxo-horna-unsm-2026.github.io/carne-ra-unsm/?fov=70`
+
+Usa el que haga que el marco dorado calce justo con el borde del carné.
 
 ## Problemas comunes
 

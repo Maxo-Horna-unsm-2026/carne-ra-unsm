@@ -5,7 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>Carné aumentado UNSM</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script>
+    /* Ángulo de visión vertical de la cámara del celular (grados).
+       MindAR original supone 45°, pero la cámara de un celular ve ~60-70°; si no coincide,
+       la maqueta se ve corrida cuando miras el carné en ángulo. Se puede ajustar con el botón ⚙️. */
+    window.MINDAR_FOVY = 65;
+    try {
+      const q = parseFloat(new URLSearchParams(location.search).get('fov'));
+      const guardado = parseFloat(localStorage.getItem('carneFov'));
+      if (q > 20 && q < 120) window.MINDAR_FOVY = q;
+      else if (guardado > 20 && guardado < 120) window.MINDAR_FOVY = guardado;
+    } catch (e) {}
+  </script>
+  <!-- MindAR 1.2.5 con un único cambio: permite indicar el ángulo de la cámara (MINDAR_FOVY) -->
+  <script src="./mindar-image-aframe.prod.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Carné aumentado UNSM</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+
+    /* ---------- Pantalla de inicio ---------- */
+    #inicio {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: radial-gradient(circle at 50% 30%, #17406f 0%, #0b2545 70%);
+      color: #fff; text-align: center; padding: 28px;
+    }
+    #inicio img { width: 110px; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); animation: flotar 3s ease-in-out infinite; }
+    #inicio h1 { margin: 6px 0 0; font-size: 26px; }
+    #inicio p { margin: 0; opacity: .85; max-width: 320px; line-height: 1.45; }
+    #btnIniciar {
+      margin-top: 10px; font-size: 18px; font-weight: 700; padding: 14px 34px;
+      border: 0; border-radius: 999px; background: #f4b400; color: #0b2545;
+      box-shadow: 0 6px 18px rgba(244,180,0,.4);
+    }
+    #inicio small { opacity: .6; margin-top: 8px; }
+    @keyframes flotar { 50% { transform: translateY(-10px); } }
+
+    /* ---------- Aviso "carné detectado" ---------- */
+    #aviso {
+      position: fixed; top: 18px; left: 50%; z-index: 20;
+      transform: translate(-50%, -90px); transition: transform .35s ease;
+      background: #0b2545; color: #fff; border: 2px solid #f4b400;
+      padding: 10px 18px; border-radius: 999px; font-weight: 600; white-space: nowrap;
+    }
+    #aviso.visible { transform: translate(-50%, 0); }
+
+    /* ---------- Botones de acceso ---------- */
+    #accesos {
+      position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 20;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      transform: translateY(160%); transition: transform .4s ease;
+    }
+    #accesos.visible { transform: translateY(0); }
+    #accesos a {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 10px; border-radius: 14px; text-decoration: none;
+      background: rgba(11,37,69,.92); color: #fff; font-weight: 600; font-size: 15px;
+      border: 1.5px solid #f4b400; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    }
+    #accesos a:active { background: #f4b400; color: #0b2545; }
+    .a-enter-vr, .a-enter-ar { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Pantalla de inicio -->
+  <div id="inicio">
+    <img src="./escudo.png" alt="Escudo UNSM">
+    <h1>Carné aumentado UNSM</h1>
+    <p>Toca <b>Comenzar</b>, permite el uso de la cámara y apunta a la parte delantera de tu carné universitario.</p>
+    <button id="btnIniciar">Comenzar</button>
+    <small>Ingeniería de Sistemas e Informática</small>
+  </div>
+
+  <div id="aviso">✅ Carné detectado</div>
+
+  <!-- Botones de acceso rápido (cambia las URL aquí si hace falta) -->
+  <div id="accesos">
+    <a href="https://sigauintranet.unsm.edu.pe/" target="_blank" rel="noopener">🔐 Intranet</a>
+    <a href="https://campusvirtualpregrado.unsm.edu.pe/" target="_blank" rel="noopener">🎓 Aula virtual</a>
+    <a href="http://biblioteca.unsm.edu.pe/" target="_blank" rel="noopener">📚 Biblioteca</a>
+    <a href="https://unsm.edu.pe/" target="_blank" rel="noopener">🌐 Web UNSM</a>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001"
+    color-space="sRGB" renderer="colorManagement: true"
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <img id="imgEscudo" src="./escudo.png">
+      <img id="imgPanel" src="./panel-facultad.png">
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- El carné mide 1 de ancho y 0,635 de alto. El centro del carné es (0, 0). -->
+    <a-entity id="carne" mindar-image-target="targetIndex: 0">
+
+      <!-- Marco dorado alrededor del carné -->
+      <a-entity id="marco" scale="0.001 0.001 0.001"
+        animation__abrir="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 500; easing: easeOutQuad; startEvents: aparecer">
+        <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 0.3275 0.002"></a-plane>
+        <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 -0.3275 0.002"></a-plane>
+        <a-plane color="#f4b400" shader="flat" width="0.02" height="0.675" position="0.51 0 0.002"></a-plane>
+        <a-plane color="#f4b400" shader="flat" width="0.02" height="0.675" position="-0.51 0 0.002"></a-plane>
+      </a-entity>
+
+      <!-- Línea de "escaneo" que recorre el carné -->
+      <a-plane id="escaneo" color="#f4b400" shader="flat" width="1" height="0.025" position="0 0.31 0.004"
+        material="transparent: true; opacity: 0"
+        animation__bajar="property: position; from: 0 0.31 0.004; to: 0 -0.31 0.004; dur: 900; easing: easeInOutQuad; startEvents: aparecer"
+        animation__brillo="property: material.opacity; from: 0.85; to: 0; dur: 900; easing: easeInQuad; startEvents: aparecer">
+      </a-plane>
+
+      <!-- Escudo: sale de la zona de la foto del carné y se balancea -->
+      <a-entity id="escudo" position="-0.3 -0.02 0.01" scale="0.01 0.01 0.01"
+        animation__salir="property: position; from: -0.3 -0.02 0.01; to: -0.3 0 0.18; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer"
+        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer">
+        <a-image src="#imgEscudo" transparent="true" width="0.36" height="0.42"
+          animation__balanceo="property: rotation; from: 0 -22 0; to: 0 22 0; dur: 1800; dir: alternate; loop: true; easing: easeInOutSine"
+          animation__flotar="property: position; from: 0 -0.015 0; to: 0 0.015 0; dur: 1400; dir: alternate; loop: true; easing: easeInOutSine">
+        </a-image>
+      </a-entity>
+
+      <!-- Panel de la facultad: aparece encima del carné -->
+      <a-entity id="panel" position="0 0.56 0.02" scale="0.01 0.01 0.01"
+        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 700; delay: 900; easing: easeOutBack; startEvents: aparecer">
+        <a-image src="#imgPanel" transparent="true" width="0.95" height="0.4"></a-image>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const escena  = document.querySelector('a-scene');
+    const carne   = document.querySelector('#carne');
+    const accesos = document.querySelector('#accesos');
+    const aviso   = document.querySelector('#aviso');
+    const animados = ['#marco', '#escaneo', '#escudo', '#panel'].map(s => document.querySelector(s));
+    let avisoTimer;
+
+    // Botón "Comenzar": recién aquí se enciende la cámara
+    document.querySelector('#btnIniciar').addEventListener('click', () => {
+      document.querySelector('#inicio').style.display = 'none';
+      const iniciar = () => escena.systems['mindar-image-system'].start();
+      escena.hasLoaded ? iniciar() : escena.addEventListener('loaded', iniciar);
+    });
+
+    // Cuando la cámara encuentra el carné
+    carne.addEventListener('targetFound', () => {
+      animados.forEach(el => el.emit('aparecer', null, false));
+      accesos.classList.add('visible');
+      aviso.classList.add('visible');
+      clearTimeout(avisoTimer);
+      avisoTimer = setTimeout(() => aviso.classList.remove('visible'), 1800);
+      if (navigator.vibrate) navigator.vibrate(60);
+    });
+
+    // Cuando la cámara pierde el carné: se esconde todo y se reinicia
+    carne.addEventListener('targetLost', () => {
+      accesos.classList.remove('visible');
+      document.querySelector('#escudo').setAttribute('scale', '0.01 0.01 0.01');
+      document.querySelector('#escudo').setAttribute('position', '-0.3 -0.02 0.01');
+      document.querySelector('#panel').setAttribute('scale', '0.01 0.01 0.01');
+      document.querySelector('#marco').setAttribute('scale', '0.001 0.001 0.001');
+    });
+  </script>
+</body>
+</html>

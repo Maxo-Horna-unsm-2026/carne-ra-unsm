@@ -11,7 +11,7 @@ Pon el carné sobre una mesa y apunta con el celular. El carné funciona como el
 
 Consejo: imprime el carné en tamaño A4 para la presentación. Se reconoce desde más ángulos y la maqueta se ve más grande.
 
-El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si el carné se pierde un momento, el contenido espera casi 1 segundo antes de desaparecer.
+El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si la cámara deja de ver el carné, la maqueta no desaparece: usa el giroscopio del celular para quedarse en su lugar mientras miras alrededor (hasta 15 segundos). Cuando la cámara vuelve a ver el carné, la maqueta se reacomoda sola encima.
 
 ## Archivos
 

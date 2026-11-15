@@ -17,7 +17,7 @@
       background: radial-gradient(circle at 50% 30%, #17406f 0%, #0b2545 70%);
       color: #fff; text-align: center; padding: 28px;
     }
-    #inicio img { width: 110px; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); animation: flotar 3s ease-in-out infinite; }
+    #inicio img { width: 120px; filter: drop-shadow(0 8px 18px rgba(0,0,0,.45)); animation: flotar 3s ease-in-out infinite; }
     #inicio h1 { margin: 6px 0 0; font-size: 26px; }
     #inicio p { margin: 0; opacity: .85; max-width: 320px; line-height: 1.45; }
     #btnIniciar {
@@ -28,29 +28,17 @@
     #inicio small { opacity: .6; margin-top: 8px; }
     @keyframes flotar { 50% { transform: translateY(-10px); } }
 
-    /* ---------- Aviso "carné detectado" ---------- */
-    #aviso {
-      position: fixed; top: 18px; left: 50%; z-index: 20;
-      transform: translate(-50%, -90px); transition: transform .35s ease;
+    /* ---------- Avisos arriba y abajo ---------- */
+    .aviso {
+      position: fixed; left: 50%; z-index: 20; transition: transform .35s ease;
       background: #0b2545; color: #fff; border: 2px solid #f4b400;
       padding: 10px 18px; border-radius: 999px; font-weight: 600; white-space: nowrap;
     }
+    #aviso { top: 18px; transform: translate(-50%, -90px); }
     #aviso.visible { transform: translate(-50%, 0); }
+    #ayuda { bottom: 22px; transform: translate(-50%, 120px); background: rgba(11,37,69,.9); font-weight: 500; }
+    #ayuda.visible { transform: translate(-50%, 0); }
 
-    /* ---------- Botones de acceso ---------- */
-    #accesos {
-      position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 20;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-      transform: translateY(160%); transition: transform .4s ease;
-    }
-    #accesos.visible { transform: translateY(0); }
-    #accesos a {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 14px 10px; border-radius: 14px; text-decoration: none;
-      background: rgba(11,37,69,.92); color: #fff; font-weight: 600; font-size: 15px;
-      border: 1.5px solid #f4b400; box-shadow: 0 4px 14px rgba(0,0,0,.35);
-    }
-    #accesos a:active { background: #f4b400; color: #0b2545; }
     .a-enter-vr, .a-enter-ar { display: none !important; }
   </style>
 </head>
@@ -64,15 +52,8 @@
     <small>Ingeniería de Sistemas e Informática</small>
   </div>
 
-  <div id="aviso">✅ Carné detectado</div>
-
-  <!-- Botones de acceso rápido (cambia las URL aquí si hace falta) -->
-  <div id="accesos">
-    <a href="https://sigauintranet.unsm.edu.pe/" target="_blank" rel="noopener">🔐 Intranet</a>
-    <a href="https://campusvirtualpregrado.unsm.edu.pe/" target="_blank" rel="noopener">🎓 Aula virtual</a>
-    <a href="http://biblioteca.unsm.edu.pe/" target="_blank" rel="noopener">📚 Biblioteca</a>
-    <a href="https://unsm.edu.pe/" target="_blank" rel="noopener">🌐 Web UNSM</a>
-  </div>
+  <div id="aviso" class="aviso">✅ Carné detectado</div>
+  <div id="ayuda" class="aviso">👆 Toca un logo para abrirlo</div>
 
   <a-scene
     mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001"
@@ -82,15 +63,21 @@
     <a-assets>
       <img id="imgEscudo" src="./escudo.png">
       <img id="imgPanel" src="./panel-facultad.png">
+      <img id="icoIntranet" src="./icono-intranet.png">
+      <img id="icoAula" src="./icono-aula.png">
+      <img id="icoBiblioteca" src="./icono-biblioteca.png">
+      <img id="icoWeb" src="./icono-web.png">
     </a-assets>
 
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <!-- cursor + raycaster: permiten tocar los logos con el dedo -->
+    <a-camera position="0 0 0" look-controls="enabled: false"
+      cursor="fuse: false; rayOrigin: mouse" raycaster="far: 10000; objects: .tocable"></a-camera>
 
     <!-- El carné mide 1 de ancho y 0,635 de alto. El centro del carné es (0, 0). -->
     <a-entity id="carne" mindar-image-target="targetIndex: 0">
 
       <!-- Marco dorado alrededor del carné -->
-      <a-entity id="marco" scale="0.001 0.001 0.001"
+      <a-entity id="marco" class="reiniciar" data-escala="0.001 0.001 0.001" scale="0.001 0.001 0.001"
         animation__abrir="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 500; easing: easeOutQuad; startEvents: aparecer">
         <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 0.3275 0.002"></a-plane>
         <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 -0.3275 0.002"></a-plane>
@@ -105,31 +92,60 @@
         animation__brillo="property: material.opacity; from: 0.85; to: 0; dur: 900; easing: easeInQuad; startEvents: aparecer">
       </a-plane>
 
-      <!-- Escudo: sale de la zona de la foto del carné y se balancea -->
-      <a-entity id="escudo" position="-0.3 -0.02 0.01" scale="0.01 0.01 0.01"
+      <!-- Escudo UNSM: sale de la zona de la foto del carné y se balancea -->
+      <a-entity id="escudo" class="reiniciar" data-escala="0.01 0.01 0.01" data-pos="-0.3 -0.02 0.01"
+        position="-0.3 -0.02 0.01" scale="0.01 0.01 0.01"
         animation__salir="property: position; from: -0.3 -0.02 0.01; to: -0.3 0 0.18; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer"
         animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer">
-        <a-image src="#imgEscudo" transparent="true" width="0.36" height="0.42"
+        <a-image src="#imgEscudo" transparent="true" width="0.34" height="0.40"
           animation__balanceo="property: rotation; from: 0 -22 0; to: 0 22 0; dur: 1800; dir: alternate; loop: true; easing: easeInOutSine"
           animation__flotar="property: position; from: 0 -0.015 0; to: 0 0.015 0; dur: 1400; dir: alternate; loop: true; easing: easeInOutSine">
         </a-image>
       </a-entity>
 
       <!-- Panel de la facultad: aparece encima del carné -->
-      <a-entity id="panel" position="0 0.56 0.02" scale="0.01 0.01 0.01"
+      <a-entity id="panel" class="reiniciar" data-escala="0.01 0.01 0.01"
+        position="0 0.56 0.02" scale="0.01 0.01 0.01"
         animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 700; delay: 900; easing: easeOutBack; startEvents: aparecer">
         <a-image src="#imgPanel" transparent="true" width="0.95" height="0.4"></a-image>
+      </a-entity>
+
+      <!-- Logos de acceso: aparecen uno por uno debajo del carné. Para cambiar un link, edita data-url -->
+      <a-entity id="logos" position="0 -0.52 0.06">
+        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="-0.375 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1300; easing: easeOutBack; startEvents: aparecer">
+          <a-image class="tocable" src="#icoIntranet" transparent="true" width="0.23" height="0.27"
+            data-url="https://sigauintranet.unsm.edu.pe/"
+            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+        </a-entity>
+        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="-0.125 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1450; easing: easeOutBack; startEvents: aparecer">
+          <a-image class="tocable" src="#icoAula" transparent="true" width="0.23" height="0.27"
+            data-url="https://campusvirtualpregrado.unsm.edu.pe/"
+            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 200; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+        </a-entity>
+        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="0.125 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1600; easing: easeOutBack; startEvents: aparecer">
+          <a-image class="tocable" src="#icoBiblioteca" transparent="true" width="0.23" height="0.27"
+            data-url="http://biblioteca.unsm.edu.pe/"
+            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 400; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+        </a-entity>
+        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="0.375 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1750; easing: easeOutBack; startEvents: aparecer">
+          <a-image class="tocable" src="#icoWeb" transparent="true" width="0.23" height="0.27"
+            data-url="https://unsm.edu.pe/"
+            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 600; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+        </a-entity>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    const escena  = document.querySelector('a-scene');
-    const carne   = document.querySelector('#carne');
-    const accesos = document.querySelector('#accesos');
-    const aviso   = document.querySelector('#aviso');
-    const animados = ['#marco', '#escaneo', '#escudo', '#panel'].map(s => document.querySelector(s));
-    let avisoTimer;
+    const escena = document.querySelector('a-scene');
+    const carne  = document.querySelector('#carne');
+    const aviso  = document.querySelector('#aviso');
+    const ayuda  = document.querySelector('#ayuda');
+    let timerAviso, timerAyuda, visible = false;
 
     // Botón "Comenzar": recién aquí se enciende la cámara
     document.querySelector('#btnIniciar').addEventListener('click', () => {
@@ -138,23 +154,38 @@
       escena.hasLoaded ? iniciar() : escena.addEventListener('loaded', iniciar);
     });
 
-    // Cuando la cámara encuentra el carné
+    // Cuando la cámara encuentra el carné: arranca la animación
     carne.addEventListener('targetFound', () => {
-      animados.forEach(el => el.emit('aparecer', null, false));
-      accesos.classList.add('visible');
+      visible = true;
+      carne.querySelectorAll('[animation__abrir],[animation__bajar],[animation__salir],[animation__crecer]')
+           .forEach(el => el.emit('aparecer', null, false));
       aviso.classList.add('visible');
-      clearTimeout(avisoTimer);
-      avisoTimer = setTimeout(() => aviso.classList.remove('visible'), 1800);
+      clearTimeout(timerAviso); clearTimeout(timerAyuda);
+      timerAviso = setTimeout(() => aviso.classList.remove('visible'), 1800);
+      timerAyuda = setTimeout(() => { if (visible) ayuda.classList.add('visible'); }, 2400);
       if (navigator.vibrate) navigator.vibrate(60);
     });
 
-    // Cuando la cámara pierde el carné: se esconde todo y se reinicia
+    // Cuando la cámara pierde el carné: se esconde todo para repetir la animación
     carne.addEventListener('targetLost', () => {
-      accesos.classList.remove('visible');
-      document.querySelector('#escudo').setAttribute('scale', '0.01 0.01 0.01');
-      document.querySelector('#escudo').setAttribute('position', '-0.3 -0.02 0.01');
-      document.querySelector('#panel').setAttribute('scale', '0.01 0.01 0.01');
-      document.querySelector('#marco').setAttribute('scale', '0.001 0.001 0.001');
+      visible = false;
+      ayuda.classList.remove('visible');
+      carne.querySelectorAll('.reiniciar').forEach(el => {
+        el.setAttribute('scale', el.dataset.escala);
+        if (el.dataset.pos) el.setAttribute('position', el.dataset.pos);
+      });
+    });
+
+    // Tocar un logo: pequeño "salto" y se abre el sitio
+    document.querySelectorAll('.tocable').forEach(logo => {
+      logo.setAttribute('animation__toque', 'property: scale; from: 1.3 1.3 1.3; to: 1 1 1; dur: 300; easing: easeOutQuad; startEvents: toque');
+      logo.addEventListener('click', () => {
+        if (!visible) return;
+        logo.emit('toque', null, false);
+        const url = logo.dataset.url;
+        const ventana = window.open(url, '_blank');
+        if (!ventana) window.location.href = url;   // si el navegador bloquea la pestaña nueva
+      });
     });
   </script>
 </body>

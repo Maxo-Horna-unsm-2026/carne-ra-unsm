@@ -38,8 +38,6 @@
     #aviso.visible { transform: translate(-50%, 0); }
     #ayuda { bottom: 22px; transform: translate(-50%, 120px); background: rgba(11,37,69,.9); font-weight: 500; }
     #ayuda.visible { transform: translate(-50%, 0); }
-    #buscando { top: 18px; transform: translate(-50%, -90px); font-weight: 500; }
-    #buscando.visible { transform: translate(-50%, 0); }
 
     .a-enter-vr, .a-enter-ar { display: none !important; }
   </style>
@@ -87,27 +85,6 @@
       }
     });
 
-    /* Giroscopio: sabe hacia dónde apunta el celular */
-    const giro = {
-      hay: false, q: new THREE.Quaternion(),
-      _e: new THREE.Euler(), _q0: new THREE.Quaternion(), _q1: new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)),
-      _z: new THREE.Vector3(0, 0, 1),
-      leer(ev) {
-        if (ev.alpha === null || ev.beta === null) return;
-        const g = THREE.MathUtils.degToRad;
-        const orient = g((screen.orientation && screen.orientation.angle) || window.orientation || 0);
-        this._e.set(g(ev.beta), g(ev.alpha), -g(ev.gamma), 'YXZ');
-        this.q.setFromEuler(this._e).multiply(this._q1).multiply(this._q0.setFromAxisAngle(this._z, -orient));
-        this.hay = true;
-      },
-      activar() {
-        const escuchar = () => window.addEventListener('deviceorientation', e => giro.leer(e));
-        if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') escuchar(); }).catch(() => {});  // iPhone
-        } else { escuchar(); }                                                                                       // Android
-      }
-    };
-
     /* Estabilizador: el contenido sigue al carné suavemente y se queda QUIETO si el carné casi no se mueve */
     AFRAME.registerComponent('seguir-suave', {
       schema: {
@@ -121,26 +98,14 @@
         this.siguiendo = false; this.moviendo = false; this.saltar = true;
         this.el.object3D.visible = false;
       },
-      seguir(saltar) { this.siguiendo = true; if (saltar) this.saltar = true; },
-      detener() {                     // se perdió el carné: recordar dónde estaba y hacia dónde apuntaba el celular
-        this.siguiendo = false;
-        const yo = this.el.object3D;
-        this.p0 = yo.position.clone(); this.q0 = yo.quaternion.clone();
-        this.g0 = giro.hay ? giro.q.clone() : null;
+      seguir(saltar, objetivo) {
+        if (objetivo) this.objetivo = objetivo;
+        this.siguiendo = true; if (saltar) this.saltar = true;
       },
+      detener() { this.siguiendo = false; },   // se perdió el carné: se queda quieto un momento
       tick(t, dt) {
-        if (!this.siguiendo) {
-          // Carné perdido: si hay giroscopio, el contenido se queda "quieto en la habitación" aunque gires el celular
-          if (this.g0 && giro.hay && this.el.object3D.visible) {
-            const d = giro.q.clone().invert().multiply(this.g0);
-            const yo = this.el.object3D;
-            yo.position.copy(this.p0).applyQuaternion(d);
-            yo.quaternion.copy(d).multiply(this.q0);
-          }
-          return;
-        }
-        if (!dt) return;
-        const o = this.data.objetivo.object3D;
+        if (!this.siguiendo || !dt) return;
+        const o = (this.objetivo || this.data.objetivo).object3D;
         o.updateMatrixWorld(true);
         o.matrixWorld.decompose(this.p, this.q, this.s);
         if (!this.s.x) return;
@@ -171,7 +136,6 @@
 
   <div id="aviso" class="aviso">✅ Carné detectado</div>
   <div id="ayuda" class="aviso">👆 Toca un botón para abrirlo</div>
-  <div id="buscando" class="aviso">🔍 Vuelve a apuntar al carné</div>
 
   <a-scene
     mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 15"
@@ -190,7 +154,7 @@
     <a-entity light="type: ambient; intensity: 0.7"></a-entity>
 
     <!-- El carné detectado (MindAR lo mueve aquí; está vacío) -->
-    <a-entity id="carne" mindar-image-target="targetIndex: 0"></a-entity>
+    <a-entity id="carne" class="carne" mindar-image-target="targetIndex: 0"></a-entity>   <!-- carné 2025 -->
 
     <!-- ====== LA MAQUETA ======
          El carné es el PISO. Medidas: el carné mide 1 de ancho (x) y 0,635 de fondo (y).
@@ -327,19 +291,13 @@
 
   <script>
     const escena    = document.querySelector('a-scene');
-    const carne     = document.querySelector('#carne');
     const contenido = document.querySelector('#contenido');
     const aviso     = document.querySelector('#aviso');
     const ayuda     = document.querySelector('#ayuda');
-    const buscando  = document.querySelector('#buscando');
-    let timerBuscando;
-    // Cuánto tiempo se queda la maqueta si la cámara deja de ver el carné
-    const ESPERA_CON_GIRO = 15000;  // con giroscopio: 15 s (se mantiene en su lugar mientras miras alrededor)
-    const ESPERA_SIN_GIRO = 2500;   // sin giroscopio: 2,5 s
+    const ESPERA_AL_PERDER = 1200;  // ms que la maqueta espera si la cámara pierde el carné un instante
     let mostrando = false, timerPerdido, timerAviso, timerAyuda;
 
     document.querySelector('#btnIniciar').addEventListener('click', () => {
-      giro.activar();
       document.querySelector('#inicio').style.display = 'none';
       const iniciar = () => escena.systems['mindar-image-system'].start();
       escena.hasLoaded ? iniciar() : escena.addEventListener('loaded', iniciar);
@@ -355,31 +313,31 @@
       });
     }
 
-    carne.addEventListener('targetFound', () => {
-      clearTimeout(timerPerdido); clearTimeout(timerBuscando);
-      buscando.classList.remove('visible');
-      if (mostrando) { seguidor().seguir(false); return; }   // volvió rápido: sigue sin repetir la animación
-      mostrando = true;
-      seguidor().seguir(true);
-      contenido.object3D.visible = true;
-      contenido.querySelectorAll('.anim').forEach(el => el.emit('aparecer', null, false));
-      aviso.classList.add('visible');
-      clearTimeout(timerAviso); clearTimeout(timerAyuda);
-      timerAviso = setTimeout(() => aviso.classList.remove('visible'), 1800);
-      timerAyuda = setTimeout(() => { if (mostrando) { ayuda.classList.add('visible'); timerAyuda = setTimeout(() => ayuda.classList.remove('visible'), 3500); } }, 3000);
-      if (navigator.vibrate) navigator.vibrate(60);
-    });
+    // La maqueta sigue al carné que la cámara esté viendo
+    document.querySelectorAll('.carne').forEach(carne => {
+      carne.addEventListener('targetFound', () => {
+        clearTimeout(timerPerdido);
+        if (mostrando) { seguidor().seguir(false, carne); return; }   // volvió rápido: sigue sin repetir la animación
+        mostrando = true;
+        seguidor().seguir(true, carne);
+        contenido.object3D.visible = true;
+        contenido.querySelectorAll('.anim').forEach(el => el.emit('aparecer', null, false));
+        aviso.classList.add('visible');
+        clearTimeout(timerAviso); clearTimeout(timerAyuda);
+        timerAviso = setTimeout(() => aviso.classList.remove('visible'), 1800);
+        timerAyuda = setTimeout(() => { if (mostrando) { ayuda.classList.add('visible'); timerAyuda = setTimeout(() => ayuda.classList.remove('visible'), 3500); } }, 3000);
+        if (navigator.vibrate) navigator.vibrate(60);
+      });
 
-    carne.addEventListener('targetLost', () => {
-      seguidor().detener();                      // se queda en su lugar (con el giroscopio)
-      timerBuscando = setTimeout(() => buscando.classList.add('visible'), 2500);
-      timerPerdido = setTimeout(() => {          // si no vuelve pronto, se esconde
-        mostrando = false;
-        buscando.classList.remove('visible');
-        contenido.object3D.visible = false;
-        ayuda.classList.remove('visible');
-        reiniciar();
-      }, giro.hay ? ESPERA_CON_GIRO : ESPERA_SIN_GIRO);
+      carne.addEventListener('targetLost', () => {
+        seguidor().detener();                    // se queda quieto un instante
+        timerPerdido = setTimeout(() => {        // si no vuelve pronto, se esconde
+          mostrando = false;
+          contenido.object3D.visible = false;
+          ayuda.classList.remove('visible');
+          reiniciar();
+        }, ESPERA_AL_PERDER);
+      });
     });
 
     document.querySelectorAll('.boton').forEach(moneda =>

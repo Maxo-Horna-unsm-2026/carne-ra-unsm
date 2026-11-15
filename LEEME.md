@@ -9,16 +9,16 @@ Pon el carné sobre una mesa y apunta con el celular. El carné funciona como el
 - 4 monedas flotando delante del carné que se tocan para abrir: Intranet, Aula virtual, Biblioteca y Web UNSM.
 - Cada objeto tiene una sombra suave sobre el carné.
 
-Consejo: imprime el carné en tamaño A4 para la presentación. Se reconoce desde más ángulos y la maqueta se ve más grande.
+Consejo: para la presentación imprime `carne-para-imprimir-A4.pdf` en papel mate (sin "ajustar a página" si es posible). No brilla, se reconoce desde más ángulos y la maqueta se ve más grande.
 
-El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si la cámara deja de ver el carné, la maqueta no desaparece: usa el giroscopio del celular para quedarse en su lugar mientras miras alrededor (hasta 15 segundos). Cuando la cámara vuelve a ver el carné, la maqueta se reacomoda sola encima.
+El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si la cámara deja de ver el carné un instante, la maqueta espera 1 segundo; si no lo vuelve a ver, desaparece y vuelve a nacer cuando lo encuentra.
 
 ## Archivos
 
 | Archivo | Qué es |
 |---|---|
 | `index.html` | La página (el código) |
-| `targets.mind` | La "huella" del carné, para que la cámara lo reconozca |
+| `targets.mind` | La "huella" del carné 2025, para que la cámara lo reconozca |
 | `escudo.png` | Escudo de la UNSM (pantalla de inicio) |
 | `3d-*.jpg` y `3d-*.png` | Imágenes de los objetos 3D (medalla, laptop, panel, botones) |
 

@@ -148,18 +148,22 @@
     <a-camera position="0 0 0" look-controls="enabled: false"
       cursor="fuse: false; rayOrigin: mouse" raycaster="far: 10000; objects: .tocable"></a-camera>
 
-    <!-- Luces para que los objetos 3D tengan brillo y sombra -->
-    <a-entity light="type: ambient; intensity: 0.75"></a-entity>
-    <a-entity light="type: directional; intensity: 0.9" position="0.6 1 1.2"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.7"></a-entity>
 
     <!-- El carné detectado (MindAR lo mueve aquí; está vacío) -->
     <a-entity id="carne" mindar-image-target="targetIndex: 0"></a-entity>
 
-    <!-- Todo el contenido sigue al carné de forma estable.
-         Medidas: el carné mide 1 de ancho y 0,635 de alto. Centro = (0,0). "z" sale del carné hacia la cámara. -->
+    <!-- ====== LA MAQUETA ======
+         El carné es el PISO. Medidas: el carné mide 1 de ancho (x) y 0,635 de fondo (y).
+         Centro del carné = (0,0,0). "z" es la ALTURA sobre el carné.
+         El borde de abajo del carné (y negativo) es el lado del espectador. -->
     <a-entity id="contenido" seguir-suave="objetivo: #carne">
 
-      <!-- Marco dorado sobre el borde del carné -->
+      <!-- Luz tipo "sol" fija a la maqueta (las sombras de brillo no cambian al mover el celular) -->
+      <a-entity id="centroLuz" position="0 0 0"></a-entity>
+      <a-entity light="type: directional; intensity: 0.85; target: #centroLuz" position="-0.6 -1 1.6"></a-entity>
+
+      <!-- Marco dorado en el borde del carné -->
       <a-entity class="anim reiniciar" data-escala="0.001 0.001 0.001" scale="0.001 0.001 0.001"
         animation__abrir="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 500; easing: easeOutQuad; startEvents: aparecer">
         <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 0.3275 0.002"></a-plane>
@@ -174,94 +178,111 @@
         animation__bajar="property: position; from: 0 0.31 0.004; to: 0 -0.31 0.004; dur: 900; easing: easeInOutQuad; startEvents: aparecer"
         animation__brillo="property: material.opacity; from: 0.85; to: 0; dur: 900; easing: easeInQuad; startEvents: aparecer"></a-plane>
 
-      <!-- 1) MEDALLA 3D con el escudo: sale de la foto del carné y gira -->
-      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" data-pos="-0.3 0 0.02"
-        position="-0.3 0 0.02" scale="0.01 0.01 0.01"
-        animation__salir="property: position; from: -0.3 0 0.02; to: -0.3 0.02 0.24; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer"
-        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer">
-        <a-entity animation__girar="property: rotation; from: 0 0 0; to: 0 360 0; dur: 6000; loop: true; easing: linear">
-          <a-entity geometry="primitive: cylinder; radius: 0.17; height: 0.045; segmentsRadial: 64" rotation="90 0 0"
-            caras="lado: #f4b400; metal: 0.75; rugosidad: 0.3"></a-entity>
-          <a-circle radius="0.168" segments="64" position="0 0 0.0235" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
-          <a-circle radius="0.168" segments="64" position="0 0 -0.0235" rotation="0 180 0" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
+      <!-- Anillo de luz que se expande desde el centro (de aquí "nacen" los objetos) -->
+      <a-image class="anim" src="./3d-portal.png" transparent="true" width="1" height="1" position="0 0 0.006" scale="0.01 0.01 0.01"
+        material="opacity: 0; depthWrite: false"
+        animation__crecer="property: scale; from: 0.05 0.05 1; to: 1.1 1.1 1; dur: 1100; delay: 400; easing: easeOutCubic; startEvents: aparecer"
+        animation__brillo="property: material.opacity; from: 1; to: 0; dur: 1100; delay: 400; easing: easeInQuad; startEvents: aparecer"></a-image>
+
+      <!-- 1) LETRERO de la facultad, de pie al fondo del carné, sobre dos postes -->
+      <a-entity class="anim reiniciar" data-escala="0.3 0.3 0.01" position="0 0.24 0" scale="0.3 0.3 0.01"
+        animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 900; delay: 1400; easing: easeOutBack; startEvents: aparecer">
+        <a-image src="./3d-sombra.png" transparent="true" width="1.05" height="0.16" position="0 0 0.003" material="depthWrite: false"></a-image>
+        <a-entity geometry="primitive: cylinder; radius: 0.012; height: 0.34" rotation="90 0 0" position="-0.4 0 0.17" caras="lado: #f4b400; metal: 0.7; rugosidad: 0.3"></a-entity>
+        <a-entity geometry="primitive: cylinder; radius: 0.012; height: 0.34" rotation="90 0 0" position="0.4 0 0.17" caras="lado: #f4b400; metal: 0.7; rugosidad: 0.3"></a-entity>
+        <a-entity geometry="primitive: box; width: 0.95; height: 0.4; depth: 0.035" rotation="90 0 0" position="0 0 0.53"
+          caras="frente: ./3d-panel.jpg; lado: #0b2545; metal: 0.2"></a-entity>
+      </a-entity>
+
+      <!-- 2) MEDALLA con el escudo: de pie, girando sobre su eje -->
+      <a-entity class="anim reiniciar" data-escala="0.3 0.3 0.01" position="-0.27 -0.03 0" scale="0.3 0.3 0.01"
+        animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 1000; delay: 500; easing: easeOutBack; startEvents: aparecer">
+        <a-image src="./3d-sombra.png" transparent="true" width="0.36" height="0.2" position="0 0 0.003" material="depthWrite: false"></a-image>
+        <a-entity position="0 0 0.2"
+          animation__girar="property: rotation; from: 0 0 0; to: 0 0 360; dur: 7000; loop: true; easing: linear">
+          <a-entity rotation="90 0 0">
+            <a-entity geometry="primitive: cylinder; radius: 0.16; height: 0.045; segmentsRadial: 64" rotation="90 0 0"
+              caras="lado: #f4b400; metal: 0.75; rugosidad: 0.3"></a-entity>
+            <a-circle radius="0.158" segments="64" position="0 0 0.0235" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
+            <a-circle radius="0.158" segments="64" position="0 0 -0.0235" rotation="0 180 0" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
+          </a-entity>
         </a-entity>
       </a-entity>
 
-      <!-- 2) LAPTOP 3D: se abre sobre el carné -->
-      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" position="0.27 -0.06 0" rotation="0 0 -8" scale="0.01 0.01 0.01"
-        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 600; easing: easeOutBack; startEvents: aparecer">
-        <!-- base con teclado -->
-        <a-entity geometry="primitive: box; width: 0.38; height: 0.25; depth: 0.02" position="0 0 0.012"
+      <!-- 3) LAPTOP sobre el carné: aparece cerrada y se abre -->
+      <a-entity class="anim reiniciar" data-escala="0.3 0.3 0.01" position="0.25 -0.04 0" rotation="0 0 -15" scale="0.3 0.3 0.01"
+        animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 700; delay: 800; easing: easeOutBack; startEvents: aparecer">
+        <a-image src="./3d-sombra.png" transparent="true" width="0.48" height="0.36" position="0 0 0.003" material="depthWrite: false"></a-image>
+        <a-entity geometry="primitive: box; width: 0.36; height: 0.24; depth: 0.02" position="0 0 0.012"
           caras="frente: ./3d-teclado.jpg; lado: #9aa0a8; metal: 0.6"></a-entity>
-        <!-- bisagra: gira para abrir la pantalla -->
-        <a-entity class="anim reiniciar" data-rot="0 0 0" position="0 0.125 0.022"
-          animation__abrir="property: rotation; from: 0 0 0; to: -125 0 0; dur: 1300; delay: 1100; easing: easeOutBack; startEvents: aparecer">
-          <a-entity geometry="primitive: box; width: 0.38; height: 0.24; depth: 0.012" position="0 -0.12 0.007" rotation="0 0 180"
+        <a-entity class="anim reiniciar" data-rot="0 0 0" position="0 0.12 0.022"
+          animation__abrir="property: rotation; from: 0 0 0; to: -105 0 0; dur: 1300; delay: 1300; easing: easeOutBack; startEvents: aparecer">
+          <a-entity geometry="primitive: box; width: 0.36; height: 0.23; depth: 0.012" position="0 -0.115 0.007" rotation="0 0 180"
             caras="atras: ./3d-pantalla.jpg; lado: #9aa0a8; metal: 0.6"></a-entity>
         </a-entity>
       </a-entity>
 
-      <!-- 3) PANEL 3D grueso con la facultad, arriba del carné -->
-      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" position="0 0.57 0.06" rotation="14 0 0" scale="0.01 0.01 0.01"
-        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 700; delay: 1500; easing: easeOutBack; startEvents: aparecer">
-        <a-entity geometry="primitive: box; width: 0.95; height: 0.4; depth: 0.035"
-          caras="frente: ./3d-panel.jpg; lado: #0b2545; metal: 0.2"></a-entity>
-      </a-entity>
-
-      <!-- 4) BOTONES 3D (monedas que se balancean). Para cambiar un link, edita data-url -->
-      <a-entity position="0 -0.53 0.1">
-        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="-0.375 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1900; easing: easeOutBack; startEvents: aparecer">
-          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; dir: alternate; loop: true; easing: easeInOutSine">
-            <a-entity data-url="https://sigauintranet.unsm.edu.pe/">
-              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+      <!-- 4) BOTONES: monedas flotando delante del carné. Para cambiar un link, edita data-url -->
+        <a-entity class="boton anim reiniciar" data-escala="0.3 0.3 0.01" position="-0.36 -0.46 0" scale="0.3 0.3 0.01"
+          animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 700; delay: 1900; easing: easeOutBack; startEvents: aparecer">
+          <a-image src="./3d-sombra.png" transparent="true" width="0.2" height="0.12" position="0 0 0.003" material="depthWrite: false"></a-image>
+          <a-image src="#etqIntranet" transparent="true" side="double" width="0.147" height="0.045" position="0 -0.02 0.035" rotation="90 0 0"></a-image>
+          <a-entity position="0 0 0.16"
+            animation__flotar="property: position; from: 0 0 0.15; to: 0 0 0.17; dur: 1400; delay: 0; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity rotation="90 0 0" data-url="https://sigauintranet.unsm.edu.pe/"
+              animation__balanceo="property: rotation; from: 90 -25 0; to: 90 25 0; dur: 1700; delay: 0; dir: alternate; loop: true; easing: easeInOutSine">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.08; height: 0.035; segmentsRadial: 48" rotation="90 0 0"
                 caras="lado: #00953a; metal: 0.4"></a-entity>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 0.018" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 -0.018" rotation="0 180 0" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
             </a-entity>
           </a-entity>
-          <a-image src="#etqIntranet" transparent="true" width="0.163" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-
-        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="-0.125 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2050; easing: easeOutBack; startEvents: aparecer">
-          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 250; dir: alternate; loop: true; easing: easeInOutSine">
-            <a-entity data-url="https://campusvirtualpregrado.unsm.edu.pe/">
-              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+        <a-entity class="boton anim reiniciar" data-escala="0.3 0.3 0.01" position="-0.12 -0.46 0" scale="0.3 0.3 0.01"
+          animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 700; delay: 2050; easing: easeOutBack; startEvents: aparecer">
+          <a-image src="./3d-sombra.png" transparent="true" width="0.2" height="0.12" position="0 0 0.003" material="depthWrite: false"></a-image>
+          <a-image src="#etqAula" transparent="true" side="double" width="0.200" height="0.045" position="0 -0.02 0.035" rotation="90 0 0"></a-image>
+          <a-entity position="0 0 0.16"
+            animation__flotar="property: position; from: 0 0 0.15; to: 0 0 0.17; dur: 1400; delay: 200; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity rotation="90 0 0" data-url="https://campusvirtualpregrado.unsm.edu.pe/"
+              animation__balanceo="property: rotation; from: 90 -25 0; to: 90 25 0; dur: 1700; delay: 250; dir: alternate; loop: true; easing: easeInOutSine">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.08; height: 0.035; segmentsRadial: 48" rotation="90 0 0"
                 caras="lado: #00953a; metal: 0.4"></a-entity>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 0.018" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 -0.018" rotation="0 180 0" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
             </a-entity>
           </a-entity>
-          <a-image src="#etqAula" transparent="true" width="0.222" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-
-        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="0.125 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2200; easing: easeOutBack; startEvents: aparecer">
-          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 500; dir: alternate; loop: true; easing: easeInOutSine">
-            <a-entity data-url="http://biblioteca.unsm.edu.pe/">
-              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+        <a-entity class="boton anim reiniciar" data-escala="0.3 0.3 0.01" position="0.12 -0.46 0" scale="0.3 0.3 0.01"
+          animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 700; delay: 2200; easing: easeOutBack; startEvents: aparecer">
+          <a-image src="./3d-sombra.png" transparent="true" width="0.2" height="0.12" position="0 0 0.003" material="depthWrite: false"></a-image>
+          <a-image src="#etqBiblioteca" transparent="true" side="double" width="0.177" height="0.045" position="0 -0.02 0.035" rotation="90 0 0"></a-image>
+          <a-entity position="0 0 0.16"
+            animation__flotar="property: position; from: 0 0 0.15; to: 0 0 0.17; dur: 1400; delay: 400; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity rotation="90 0 0" data-url="http://biblioteca.unsm.edu.pe/"
+              animation__balanceo="property: rotation; from: 90 -25 0; to: 90 25 0; dur: 1700; delay: 500; dir: alternate; loop: true; easing: easeInOutSine">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.08; height: 0.035; segmentsRadial: 48" rotation="90 0 0"
                 caras="lado: #00953a; metal: 0.4"></a-entity>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 0.018" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 -0.018" rotation="0 180 0" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
             </a-entity>
           </a-entity>
-          <a-image src="#etqBiblioteca" transparent="true" width="0.197" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-
-        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="0.375 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2350; easing: easeOutBack; startEvents: aparecer">
-          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 750; dir: alternate; loop: true; easing: easeInOutSine">
-            <a-entity data-url="https://unsm.edu.pe/">
-              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+        <a-entity class="boton anim reiniciar" data-escala="0.3 0.3 0.01" position="0.36 -0.46 0" scale="0.3 0.3 0.01"
+          animation__crecer="property: scale; from: 0.3 0.3 0.01; to: 1 1 1; dur: 700; delay: 2350; easing: easeOutBack; startEvents: aparecer">
+          <a-image src="./3d-sombra.png" transparent="true" width="0.2" height="0.12" position="0 0 0.003" material="depthWrite: false"></a-image>
+          <a-image src="#etqWeb" transparent="true" side="double" width="0.198" height="0.045" position="0 -0.02 0.035" rotation="90 0 0"></a-image>
+          <a-entity position="0 0 0.16"
+            animation__flotar="property: position; from: 0 0 0.15; to: 0 0 0.17; dur: 1400; delay: 600; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity rotation="90 0 0" data-url="https://unsm.edu.pe/"
+              animation__balanceo="property: rotation; from: 90 -25 0; to: 90 25 0; dur: 1700; delay: 750; dir: alternate; loop: true; easing: easeInOutSine">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.08; height: 0.035; segmentsRadial: 48" rotation="90 0 0"
                 caras="lado: #00953a; metal: 0.4"></a-entity>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
-              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 0.018" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.079" segments="48" position="0 0 -0.018" rotation="0 180 0" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
             </a-entity>
           </a-entity>
-          <a-image src="#etqWeb" transparent="true" width="0.22" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-      </a-entity>
     </a-entity>
   </a-scene>
 
@@ -300,7 +321,7 @@
       aviso.classList.add('visible');
       clearTimeout(timerAviso); clearTimeout(timerAyuda);
       timerAviso = setTimeout(() => aviso.classList.remove('visible'), 1800);
-      timerAyuda = setTimeout(() => { if (mostrando) ayuda.classList.add('visible'); }, 3000);
+      timerAyuda = setTimeout(() => { if (mostrando) { ayuda.classList.add('visible'); timerAyuda = setTimeout(() => ayuda.classList.remove('visible'), 3500); } }, 3000);
       if (navigator.vibrate) navigator.vibrate(60);
     });
 

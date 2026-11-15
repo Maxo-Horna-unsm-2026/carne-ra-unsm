@@ -1,12 +1,15 @@
 # Carné aumentado UNSM
 
-Apunta la cámara del celular a la parte delantera del carné universitario y aparece, en 3D:
+Pon el carné sobre una mesa y apunta con el celular. El carné funciona como el **piso de una maqueta**: de él nacen objetos 3D de pie, que puedes ver desde distintos ángulos moviendo el celular alrededor (mientras la cámara vea el carné).
 
-- Un marco dorado y una línea de escaneo sobre el carné.
-- Una medalla 3D con el escudo de la UNSM que sale de la foto y gira.
-- Una laptop 3D que se abre sobre el carné, con código en la pantalla.
-- Un panel grueso con la facultad y la escuela profesional.
-- 4 botones 3D (monedas) que se tocan para abrir: Intranet, Aula virtual, Biblioteca y Web UNSM.
+- Un marco dorado, una línea de escaneo y un anillo de luz que se abre desde el centro.
+- Un letrero con la facultad, de pie al fondo del carné sobre dos postes.
+- Una medalla 3D con el escudo de la UNSM, de pie y girando.
+- Una laptop sobre el carné que se abre, con código en la pantalla.
+- 4 monedas flotando delante del carné que se tocan para abrir: Intranet, Aula virtual, Biblioteca y Web UNSM.
+- Cada objeto tiene una sombra suave sobre el carné.
+
+Consejo: imprime el carné en tamaño A4 para la presentación. Se reconoce desde más ángulos y la maqueta se ve más grande.
 
 El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si el carné se pierde un momento, el contenido espera casi 1 segundo antes de desaparecer.
 

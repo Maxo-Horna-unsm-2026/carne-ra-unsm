@@ -28,7 +28,7 @@
     #inicio small { opacity: .6; margin-top: 8px; }
     @keyframes flotar { 50% { transform: translateY(-10px); } }
 
-    /* ---------- Avisos arriba y abajo ---------- */
+    /* ---------- Avisos ---------- */
     .aviso {
       position: fixed; left: 50%; z-index: 20; transition: transform .35s ease;
       background: #0b2545; color: #fff; border: 2px solid #f4b400;
@@ -41,9 +41,88 @@
 
     .a-enter-vr, .a-enter-ar { display: none !important; }
   </style>
+
+  <script>
+    const THREE = AFRAME.THREE;
+
+    /* Pone una imagen en la cara de adelante (y atrás) de una caja o cilindro, y color en los lados */
+    const cacheTexturas = {};
+    function textura(url, espejo) {
+      const clave = url + (espejo ? '#e' : '');
+      if (!cacheTexturas[clave]) {
+        const t = new THREE.TextureLoader().load(url);
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 4;
+        if (espejo) { t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; }
+        cacheTexturas[clave] = t;
+      }
+      return cacheTexturas[clave];
+    }
+    AFRAME.registerComponent('caras', {
+      schema: {
+        frente: { default: '' }, atras: { default: '' },
+        lado: { type: 'color', default: '#f4b400' },
+        metal: { default: 0.3 }, rugosidad: { default: 0.45 }
+      },
+      init() {
+        this.aplicar = this.aplicar.bind(this);
+        this.el.addEventListener('object3dset', this.aplicar);
+        this.aplicar();
+      },
+      aplicar() {
+        const mesh = this.el.getObject3D('mesh');
+        if (!mesh) return;
+        const d = this.data;
+        const lado = new THREE.MeshStandardMaterial({ color: d.lado, metalness: d.metal, roughness: d.rugosidad });
+        const cara = (url, espejo) => url
+          ? new THREE.MeshStandardMaterial({ map: textura(url, espejo), roughness: 0.6, metalness: 0 })
+          : lado;
+        if (mesh.geometry.type === 'CylinderGeometry') {
+          mesh.material = [lado, cara(d.frente), cara(d.atras, true)];      // lado, tapa de arriba, tapa de abajo
+        } else {
+          mesh.material = [lado, lado, lado, lado, cara(d.frente), cara(d.atras)]; // +x,-x,+y,-y,+z(frente),-z(atrás)
+        }
+      }
+    });
+
+    /* Estabilizador: el contenido sigue al carné suavemente y se queda QUIETO si el carné casi no se mueve */
+    AFRAME.registerComponent('seguir-suave', {
+      schema: {
+        objetivo: { type: 'selector' },
+        rapidez: { default: 6 },      // más alto = sigue más rápido, más bajo = más suave
+        zonaPos: { default: 0.03 },   // movimiento ignorado (fracción del ancho del carné)
+        zonaRot: { default: 3 }       // giro ignorado (grados)
+      },
+      init() {
+        this.p = new THREE.Vector3(); this.q = new THREE.Quaternion(); this.s = new THREE.Vector3();
+        this.siguiendo = false; this.moviendo = false; this.saltar = true;
+        this.el.object3D.visible = false;
+      },
+      seguir(saltar) { this.siguiendo = true; if (saltar) this.saltar = true; },
+      detener() { this.siguiendo = false; },
+      tick(t, dt) {
+        if (!this.siguiendo || !dt) return;
+        const o = this.data.objetivo.object3D;
+        o.updateMatrixWorld(true);
+        o.matrixWorld.decompose(this.p, this.q, this.s);
+        if (!this.s.x) return;
+        const yo = this.el.object3D;
+        if (this.saltar) {
+          yo.position.copy(this.p); yo.quaternion.copy(this.q); yo.scale.copy(this.s);
+          this.saltar = false; this.moviendo = false; return;
+        }
+        const dist = yo.position.distanceTo(this.p) / this.s.x;
+        const ang = THREE.MathUtils.radToDeg(yo.quaternion.angleTo(this.q));
+        if (!this.moviendo && dist < this.data.zonaPos && ang < this.data.zonaRot) return; // quieto
+        this.moviendo = true;
+        const a = 1 - Math.exp(-this.data.rapidez * Math.min(dt, 100) / 1000);
+        yo.position.lerp(this.p, a); yo.quaternion.slerp(this.q, a); yo.scale.lerp(this.s, a);
+        if (dist < 0.004 && ang < 0.4) this.moviendo = false;                              // llegó: se vuelve a quedar quieto
+      }
+    });
+  </script>
 </head>
 <body>
-  <!-- Pantalla de inicio -->
   <div id="inicio">
     <img src="./escudo.png" alt="Escudo UNSM">
     <h1>Carné aumentado UNSM</h1>
@@ -53,31 +132,35 @@
   </div>
 
   <div id="aviso" class="aviso">✅ Carné detectado</div>
-  <div id="ayuda" class="aviso">👆 Toca un logo para abrirlo</div>
+  <div id="ayuda" class="aviso">👆 Toca un botón para abrirlo</div>
 
   <a-scene
-    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001"
-    color-space="sRGB" renderer="colorManagement: true"
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 8"
+    color-space="sRGB" renderer="colorManagement: true; antialias: true"
     vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 
     <a-assets>
-      <img id="imgEscudo" src="./escudo.png">
-      <img id="imgPanel" src="./panel-facultad.png">
-      <img id="icoIntranet" src="./icono-intranet.png">
-      <img id="icoAula" src="./icono-aula.png">
-      <img id="icoBiblioteca" src="./icono-biblioteca.png">
-      <img id="icoWeb" src="./icono-web.png">
+      <img src="./3d-medalla.jpg"><img src="./3d-panel.jpg"><img src="./3d-pantalla.jpg"><img src="./3d-teclado.jpg">
+      <img id="etqIntranet" src="./3d-etiqueta-intranet.png"><img id="etqAula" src="./3d-etiqueta-aula.png">
+      <img id="etqBiblioteca" src="./3d-etiqueta-biblioteca.png"><img id="etqWeb" src="./3d-etiqueta-web.png">
     </a-assets>
 
-    <!-- cursor + raycaster: permiten tocar los logos con el dedo -->
     <a-camera position="0 0 0" look-controls="enabled: false"
       cursor="fuse: false; rayOrigin: mouse" raycaster="far: 10000; objects: .tocable"></a-camera>
 
-    <!-- El carné mide 1 de ancho y 0,635 de alto. El centro del carné es (0, 0). -->
-    <a-entity id="carne" mindar-image-target="targetIndex: 0">
+    <!-- Luces para que los objetos 3D tengan brillo y sombra -->
+    <a-entity light="type: ambient; intensity: 0.75"></a-entity>
+    <a-entity light="type: directional; intensity: 0.9" position="0.6 1 1.2"></a-entity>
 
-      <!-- Marco dorado alrededor del carné -->
-      <a-entity id="marco" class="reiniciar" data-escala="0.001 0.001 0.001" scale="0.001 0.001 0.001"
+    <!-- El carné detectado (MindAR lo mueve aquí; está vacío) -->
+    <a-entity id="carne" mindar-image-target="targetIndex: 0"></a-entity>
+
+    <!-- Todo el contenido sigue al carné de forma estable.
+         Medidas: el carné mide 1 de ancho y 0,635 de alto. Centro = (0,0). "z" sale del carné hacia la cámara. -->
+    <a-entity id="contenido" seguir-suave="objetivo: #carne">
+
+      <!-- Marco dorado sobre el borde del carné -->
+      <a-entity class="anim reiniciar" data-escala="0.001 0.001 0.001" scale="0.001 0.001 0.001"
         animation__abrir="property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 500; easing: easeOutQuad; startEvents: aparecer">
         <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 0.3275 0.002"></a-plane>
         <a-plane color="#f4b400" shader="flat" width="1.04" height="0.02" position="0 -0.3275 0.002"></a-plane>
@@ -85,106 +168,163 @@
         <a-plane color="#f4b400" shader="flat" width="0.02" height="0.675" position="-0.51 0 0.002"></a-plane>
       </a-entity>
 
-      <!-- Línea de "escaneo" que recorre el carné -->
-      <a-plane id="escaneo" color="#f4b400" shader="flat" width="1" height="0.025" position="0 0.31 0.004"
+      <!-- Línea de escaneo -->
+      <a-plane class="anim" color="#f4b400" shader="flat" width="1" height="0.025" position="0 0.31 0.004"
         material="transparent: true; opacity: 0"
         animation__bajar="property: position; from: 0 0.31 0.004; to: 0 -0.31 0.004; dur: 900; easing: easeInOutQuad; startEvents: aparecer"
-        animation__brillo="property: material.opacity; from: 0.85; to: 0; dur: 900; easing: easeInQuad; startEvents: aparecer">
-      </a-plane>
+        animation__brillo="property: material.opacity; from: 0.85; to: 0; dur: 900; easing: easeInQuad; startEvents: aparecer"></a-plane>
 
-      <!-- Escudo UNSM: sale de la zona de la foto del carné y se balancea -->
-      <a-entity id="escudo" class="reiniciar" data-escala="0.01 0.01 0.01" data-pos="-0.3 -0.02 0.01"
-        position="-0.3 -0.02 0.01" scale="0.01 0.01 0.01"
-        animation__salir="property: position; from: -0.3 -0.02 0.01; to: -0.3 0 0.18; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer"
+      <!-- 1) MEDALLA 3D con el escudo: sale de la foto del carné y gira -->
+      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" data-pos="-0.3 0 0.02"
+        position="-0.3 0 0.02" scale="0.01 0.01 0.01"
+        animation__salir="property: position; from: -0.3 0 0.02; to: -0.3 0.02 0.24; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer"
         animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 1000; delay: 300; easing: easeOutBack; startEvents: aparecer">
-        <a-image src="#imgEscudo" transparent="true" width="0.34" height="0.40"
-          animation__balanceo="property: rotation; from: 0 -22 0; to: 0 22 0; dur: 1800; dir: alternate; loop: true; easing: easeInOutSine"
-          animation__flotar="property: position; from: 0 -0.015 0; to: 0 0.015 0; dur: 1400; dir: alternate; loop: true; easing: easeInOutSine">
-        </a-image>
+        <a-entity animation__girar="property: rotation; from: 0 0 0; to: 0 360 0; dur: 6000; loop: true; easing: linear">
+          <a-entity geometry="primitive: cylinder; radius: 0.17; height: 0.045; segmentsRadial: 64" rotation="90 0 0"
+            caras="lado: #f4b400; metal: 0.75; rugosidad: 0.3"></a-entity>
+          <a-circle radius="0.168" segments="64" position="0 0 0.0235" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
+          <a-circle radius="0.168" segments="64" position="0 0 -0.0235" rotation="0 180 0" material="src: ./3d-medalla.jpg; shader: standard; roughness: 0.6"></a-circle>
+        </a-entity>
       </a-entity>
 
-      <!-- Panel de la facultad: aparece encima del carné -->
-      <a-entity id="panel" class="reiniciar" data-escala="0.01 0.01 0.01"
-        position="0 0.56 0.02" scale="0.01 0.01 0.01"
-        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 700; delay: 900; easing: easeOutBack; startEvents: aparecer">
-        <a-image src="#imgPanel" transparent="true" width="0.95" height="0.4"></a-image>
+      <!-- 2) LAPTOP 3D: se abre sobre el carné -->
+      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" position="0.27 -0.06 0" rotation="0 0 -8" scale="0.01 0.01 0.01"
+        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 600; easing: easeOutBack; startEvents: aparecer">
+        <!-- base con teclado -->
+        <a-entity geometry="primitive: box; width: 0.38; height: 0.25; depth: 0.02" position="0 0 0.012"
+          caras="frente: ./3d-teclado.jpg; lado: #9aa0a8; metal: 0.6"></a-entity>
+        <!-- bisagra: gira para abrir la pantalla -->
+        <a-entity class="anim reiniciar" data-rot="0 0 0" position="0 0.125 0.022"
+          animation__abrir="property: rotation; from: 0 0 0; to: -125 0 0; dur: 1300; delay: 1100; easing: easeOutBack; startEvents: aparecer">
+          <a-entity geometry="primitive: box; width: 0.38; height: 0.24; depth: 0.012" position="0 -0.12 0.007" rotation="0 0 180"
+            caras="atras: ./3d-pantalla.jpg; lado: #9aa0a8; metal: 0.6"></a-entity>
+        </a-entity>
       </a-entity>
 
-      <!-- Logos de acceso: aparecen uno por uno debajo del carné. Para cambiar un link, edita data-url -->
-      <a-entity id="logos" position="0 -0.52 0.06">
-        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="-0.375 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1300; easing: easeOutBack; startEvents: aparecer">
-          <a-image class="tocable" src="#icoIntranet" transparent="true" width="0.23" height="0.27"
-            data-url="https://sigauintranet.unsm.edu.pe/"
-            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+      <!-- 3) PANEL 3D grueso con la facultad, arriba del carné -->
+      <a-entity class="anim reiniciar" data-escala="0.01 0.01 0.01" position="0 0.57 0.06" rotation="14 0 0" scale="0.01 0.01 0.01"
+        animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 700; delay: 1500; easing: easeOutBack; startEvents: aparecer">
+        <a-entity geometry="primitive: box; width: 0.95; height: 0.4; depth: 0.035"
+          caras="frente: ./3d-panel.jpg; lado: #0b2545; metal: 0.2"></a-entity>
+      </a-entity>
+
+      <!-- 4) BOTONES 3D (monedas que se balancean). Para cambiar un link, edita data-url -->
+      <a-entity position="0 -0.53 0.1">
+        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="-0.375 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1900; easing: easeOutBack; startEvents: aparecer">
+          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity data-url="https://sigauintranet.unsm.edu.pe/">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+                caras="lado: #00953a; metal: 0.4"></a-entity>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-intranet.jpg; shader: standard; roughness: 0.6"></a-circle>
+            </a-entity>
+          </a-entity>
+          <a-image src="#etqIntranet" transparent="true" width="0.163" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="-0.125 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1450; easing: easeOutBack; startEvents: aparecer">
-          <a-image class="tocable" src="#icoAula" transparent="true" width="0.23" height="0.27"
-            data-url="https://campusvirtualpregrado.unsm.edu.pe/"
-            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 200; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+
+        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="-0.125 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2050; easing: easeOutBack; startEvents: aparecer">
+          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 250; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity data-url="https://campusvirtualpregrado.unsm.edu.pe/">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+                caras="lado: #00953a; metal: 0.4"></a-entity>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-aula.jpg; shader: standard; roughness: 0.6"></a-circle>
+            </a-entity>
+          </a-entity>
+          <a-image src="#etqAula" transparent="true" width="0.222" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="0.125 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1600; easing: easeOutBack; startEvents: aparecer">
-          <a-image class="tocable" src="#icoBiblioteca" transparent="true" width="0.23" height="0.27"
-            data-url="http://biblioteca.unsm.edu.pe/"
-            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 400; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+
+        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="0.125 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2200; easing: easeOutBack; startEvents: aparecer">
+          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 500; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity data-url="http://biblioteca.unsm.edu.pe/">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+                caras="lado: #00953a; metal: 0.4"></a-entity>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-biblioteca.jpg; shader: standard; roughness: 0.6"></a-circle>
+            </a-entity>
+          </a-entity>
+          <a-image src="#etqBiblioteca" transparent="true" width="0.197" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
-        <a-entity class="logo reiniciar" data-escala="0.01 0.01 0.01" position="0.375 0 0" scale="0.01 0.01 0.01"
-          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 1750; easing: easeOutBack; startEvents: aparecer">
-          <a-image class="tocable" src="#icoWeb" transparent="true" width="0.23" height="0.27"
-            data-url="https://unsm.edu.pe/"
-            animation__flotar="property: position; from: 0 -0.012 0; to: 0 0.012 0; dur: 1500; delay: 600; dir: alternate; loop: true; easing: easeInOutSine"></a-image>
+
+        <a-entity class="boton anim reiniciar" data-escala="0.01 0.01 0.01" position="0.375 0 0" scale="0.01 0.01 0.01"
+          animation__crecer="property: scale; from: 0.01 0.01 0.01; to: 1 1 1; dur: 600; delay: 2350; easing: easeOutBack; startEvents: aparecer">
+          <a-entity animation__balanceo="property: rotation; from: 0 -25 0; to: 0 25 0; dur: 1700; delay: 750; dir: alternate; loop: true; easing: easeInOutSine">
+            <a-entity data-url="https://unsm.edu.pe/">
+              <a-entity class="tocable" geometry="primitive: cylinder; radius: 0.095; height: 0.04; segmentsRadial: 48" rotation="90 0 0"
+                caras="lado: #00953a; metal: 0.4"></a-entity>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 0.0205" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
+              <a-circle class="tocable" radius="0.094" segments="48" position="0 0 -0.0205" rotation="0 180 0" material="src: ./3d-boton-web.jpg; shader: standard; roughness: 0.6"></a-circle>
+            </a-entity>
+          </a-entity>
+          <a-image src="#etqWeb" transparent="true" width="0.22" height="0.05" position="0 -0.135 0.02"></a-image>
         </a-entity>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    const escena = document.querySelector('a-scene');
-    const carne  = document.querySelector('#carne');
-    const aviso  = document.querySelector('#aviso');
-    const ayuda  = document.querySelector('#ayuda');
-    let timerAviso, timerAyuda, visible = false;
+    const escena    = document.querySelector('a-scene');
+    const carne     = document.querySelector('#carne');
+    const contenido = document.querySelector('#contenido');
+    const aviso     = document.querySelector('#aviso');
+    const ayuda     = document.querySelector('#ayuda');
+    const ESPERA_AL_PERDER = 900;   // ms que el contenido se queda si el carné se pierde un momento
+    let mostrando = false, timerPerdido, timerAviso, timerAyuda;
 
-    // Botón "Comenzar": recién aquí se enciende la cámara
     document.querySelector('#btnIniciar').addEventListener('click', () => {
       document.querySelector('#inicio').style.display = 'none';
       const iniciar = () => escena.systems['mindar-image-system'].start();
       escena.hasLoaded ? iniciar() : escena.addEventListener('loaded', iniciar);
     });
 
-    // Cuando la cámara encuentra el carné: arranca la animación
+    const seguidor = () => contenido.components['seguir-suave'];
+
+    function reiniciar() {
+      contenido.querySelectorAll('.reiniciar').forEach(el => {
+        if (el.dataset.escala) el.setAttribute('scale', el.dataset.escala);
+        if (el.dataset.pos) el.setAttribute('position', el.dataset.pos);
+        if (el.dataset.rot) el.setAttribute('rotation', el.dataset.rot);
+      });
+    }
+
     carne.addEventListener('targetFound', () => {
-      visible = true;
-      carne.querySelectorAll('[animation__abrir],[animation__bajar],[animation__salir],[animation__crecer]')
-           .forEach(el => el.emit('aparecer', null, false));
+      clearTimeout(timerPerdido);
+      if (mostrando) { seguidor().seguir(false); return; }   // volvió rápido: sigue sin repetir la animación
+      mostrando = true;
+      seguidor().seguir(true);
+      contenido.object3D.visible = true;
+      contenido.querySelectorAll('.anim').forEach(el => el.emit('aparecer', null, false));
       aviso.classList.add('visible');
       clearTimeout(timerAviso); clearTimeout(timerAyuda);
       timerAviso = setTimeout(() => aviso.classList.remove('visible'), 1800);
-      timerAyuda = setTimeout(() => { if (visible) ayuda.classList.add('visible'); }, 2400);
+      timerAyuda = setTimeout(() => { if (mostrando) ayuda.classList.add('visible'); }, 3000);
       if (navigator.vibrate) navigator.vibrate(60);
     });
 
-    // Cuando la cámara pierde el carné: se esconde todo para repetir la animación
     carne.addEventListener('targetLost', () => {
-      visible = false;
-      ayuda.classList.remove('visible');
-      carne.querySelectorAll('.reiniciar').forEach(el => {
-        el.setAttribute('scale', el.dataset.escala);
-        if (el.dataset.pos) el.setAttribute('position', el.dataset.pos);
-      });
+      seguidor().detener();                      // se queda congelado donde estaba
+      timerPerdido = setTimeout(() => {          // si no vuelve pronto, se esconde
+        mostrando = false;
+        contenido.object3D.visible = false;
+        ayuda.classList.remove('visible');
+        reiniciar();
+      }, ESPERA_AL_PERDER);
     });
 
-    // Tocar un logo: pequeño "salto" y se abre el sitio
-    document.querySelectorAll('.tocable').forEach(logo => {
-      logo.setAttribute('animation__toque', 'property: scale; from: 1.3 1.3 1.3; to: 1 1 1; dur: 300; easing: easeOutQuad; startEvents: toque');
-      logo.addEventListener('click', () => {
-        if (!visible) return;
-        logo.emit('toque', null, false);
-        const url = logo.dataset.url;
+    document.querySelectorAll('.boton').forEach(moneda =>
+      moneda.setAttribute('animation__toque', 'property: scale; from: 1.3 1.3 1.3; to: 1 1 1; dur: 300; easing: easeOutQuad; startEvents: toque'));
+    let ultimoToque = 0;
+    document.querySelectorAll('.tocable').forEach(parte => {
+      parte.addEventListener('click', () => {
+        if (!mostrando || Date.now() - ultimoToque < 600) return;   // evita abrir dos veces con un solo toque
+        ultimoToque = Date.now();
+        parte.closest('.boton').emit('toque', null, false);
+        const url = parte.closest('[data-url]').dataset.url;
         const ventana = window.open(url, '_blank');
-        if (!ventana) window.location.href = url;   // si el navegador bloquea la pestaña nueva
+        if (!ventana) window.location.href = url;
       });
     });
   </script>

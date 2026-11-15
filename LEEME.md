@@ -9,6 +9,8 @@ Pon el carné sobre una mesa y apunta con el celular. El carné funciona como el
 - 4 monedas flotando delante del carné que se tocan para abrir: Intranet, Aula virtual, Biblioteca y Web UNSM.
 - Cada objeto tiene una sombra suave sobre el carné.
 
+**Botón ❄️ Congelar:** cuando aparece la maqueta, arriba a la derecha sale el botón *Congelar*. Al tocarlo, la imagen de la cámara se queda quieta con la maqueta encima (la medalla sigue girando) y puedes tocar las monedas tranquilo. *▶️ Seguir* vuelve a la cámara en vivo.
+
 Consejo: para la presentación imprime `carne-para-imprimir-A4.pdf` en papel mate (sin "ajustar a página" si es posible). No brilla, se reconoce desde más ángulos y la maqueta se ve más grande.
 
 El contenido usa un estabilizador: si mueves un poco el carné o la mano tiembla, el contenido se queda quieto. Si la cámara deja de ver el carné un instante, la maqueta espera 1 segundo; si no lo vuelve a ver, desaparece y vuelve a nacer cuando lo encuentra.

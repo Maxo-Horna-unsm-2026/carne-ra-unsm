@@ -51,6 +51,13 @@
     #aviso.visible { transform: translate(-50%, 0); }
     #ayuda { bottom: 22px; transform: translate(-50%, 120px); background: rgba(11,37,69,.9); font-weight: 500; }
     #ayuda.visible { transform: translate(-50%, 0); }
+    #btnCongelar {
+      position: fixed; right: 14px; top: 70px; z-index: 25; display: none;
+      font-size: 16px; font-weight: 700; padding: 12px 16px; border-radius: 999px;
+      border: 2px solid #f4b400; background: rgba(11,37,69,.92); color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    }
+    #btnCongelar.activo { background: #f4b400; color: #0b2545; }
 
     .a-enter-vr, .a-enter-ar { display: none !important; }
   </style>
@@ -131,7 +138,9 @@
         const ang = THREE.MathUtils.radToDeg(yo.quaternion.angleTo(this.q));
         if (!this.moviendo && dist < this.data.zonaPos && ang < this.data.zonaRot) return; // quieto
         this.moviendo = true;
-        const a = 1 - Math.exp(-this.data.rapidez * Math.min(dt, 100) / 1000);
+        // Adaptativo: si el carné se movió poco, sigue suave; si se movió mucho (movimiento rápido), alcanza rápido
+        const rapidez = Math.min(this.data.rapidez + dist * 250 + ang * 1.5, 30);
+        const a = 1 - Math.exp(-rapidez * Math.min(dt, 100) / 1000);
         yo.position.lerp(this.p, a); yo.quaternion.slerp(this.q, a); yo.scale.lerp(this.s, a);
         if (dist < 0.004 && ang < 0.4) this.moviendo = false;                              // llegó: se vuelve a quedar quieto
       }
@@ -149,6 +158,7 @@
 
   <div id="aviso" class="aviso">✅ Carné detectado</div>
   <div id="ayuda" class="aviso">👆 Toca un botón para abrirlo</div>
+  <button id="btnCongelar">❄️ Congelar</button>
 
   <a-scene
     mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 15"
@@ -307,6 +317,17 @@
     const contenido = document.querySelector('#contenido');
     const aviso     = document.querySelector('#aviso');
     const ayuda     = document.querySelector('#ayuda');
+    const btnCongelar = document.querySelector('#btnCongelar');
+    let congelado = false;
+    const sistemaAR = () => escena.systems['mindar-image-system'];
+    function congelar(si) {
+      congelado = si;
+      if (si) { sistemaAR().pause(false); clearTimeout(timerPerdido); }   // detiene la cámara: la imagen queda quieta
+      else    { sistemaAR().unpause(); }                                   // vuelve la cámara en vivo
+      btnCongelar.textContent = si ? '▶️ Seguir' : '❄️ Congelar';
+      btnCongelar.classList.toggle('activo', si);
+    }
+    btnCongelar.addEventListener('click', () => congelar(!congelado));
     const ESPERA_AL_PERDER = 1200;  // ms que la maqueta espera si la cámara pierde el carné un instante
     let mostrando = false, timerPerdido, timerAviso, timerAyuda;
 
@@ -332,6 +353,7 @@
         clearTimeout(timerPerdido);
         if (mostrando) { seguidor().seguir(false, carne); return; }   // volvió rápido: sigue sin repetir la animación
         mostrando = true;
+        btnCongelar.style.display = 'block';
         seguidor().seguir(true, carne);
         contenido.object3D.visible = true;
         contenido.querySelectorAll('.anim').forEach(el => el.emit('aparecer', null, false));
@@ -345,7 +367,9 @@
       carne.addEventListener('targetLost', () => {
         seguidor().detener();                    // se queda quieto un instante
         timerPerdido = setTimeout(() => {        // si no vuelve pronto, se esconde
+          if (congelado) return;               // congelado: la maqueta se queda
           mostrando = false;
+          btnCongelar.style.display = 'none';
           contenido.object3D.visible = false;
           ayuda.classList.remove('visible');
           reiniciar();
